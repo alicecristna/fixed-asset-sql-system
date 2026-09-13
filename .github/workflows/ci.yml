@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.13"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run unit tests
+        run: python -B -m unittest discover -s tests -v
+
+      - name: Verify deterministic demo output
+        shell: bash
+        run: |
+          first_output="$(mktemp)"
+          second_output="$(mktemp)"
+          trap 'rm -f "$first_output" "$second_output"' EXIT
+          python -B demo.py > "$first_output"
+          python -B demo.py > "$second_output"
+          diff -u "$first_output" "$second_output"
+
+      - name: Check whitespace errors
+        run: git diff-tree --check --root --no-commit-id -r HEAD
